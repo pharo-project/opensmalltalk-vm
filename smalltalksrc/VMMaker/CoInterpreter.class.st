@@ -543,6 +543,9 @@ CoInterpreter >> activateCoggedNewMethod: inInterpreter [
 		 cogit ceEnterCogCodePopReceiverReg.
 		 self error: 'should not be reached'].
 	instructionPointer := cogMethod asInteger + cogMethod stackCheckOffset.
+
+	cogit recordMethodActivatedAfterStackCheckOffset: cogMethod.
+
 	switched := self handleStackOverflowOrEventAllowContextSwitch: (self canContextSwitchIfActivating: newMethod header: methodHeader).
 	self returnToExecutive: inInterpreter postContextSwitch: switched
 ]
@@ -806,8 +809,8 @@ CoInterpreter >> argumentCount: numArgs [
 CoInterpreter >> argumentCountAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: argumentCount) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #argumentCount in: self]
+
+	^ self maybeSimulatedAddressOf: #argumentCount
 ]
 
 { #category : #'frame access' }
@@ -2133,6 +2136,9 @@ CoInterpreter >> ceStackOverflow: contextSwitchIfNotNil [
 	cogMethod := self mframeCogMethod: framePointer.
 	self assert: cesoRetAddr - cogit abortOffset = (self asCogHomeMethod: cogMethod) asInteger.
 	instructionPointer := cogMethod asInteger + cogMethod stackCheckOffset.
+	
+	cogit recordMethodActivatedAfterStackCheckOffset: cogMethod.	
+	
 	self assertValidExecutionPointe: instructionPointer r: framePointer s: stackPointer imbar: false line: #'__LINE__'.
 	method := newMethod := messageSelector := objectMemory nilObject.
 	switched := self handleStackOverflowOrEventAllowContextSwitch: contextSwitchIfNotNil ~= 0.
@@ -2861,6 +2867,9 @@ CoInterpreter >> ensureMethodIsCogged: methodObj maybeClosure: maybeClosure [
 		 self commenceCogCompiledCodeCompaction].
 	(self asserta: cogMethod ~~ nil) ifFalse:
 		[self error: 'could not compile method that should have been compiled'].
+	
+	cogit ensureMethodIsCoggedEvent: cogMethod.
+	
 	^cogMethod
 ]
 
@@ -3052,6 +3061,7 @@ CoInterpreter >> executeNewMethod [
 	primitiveFunctionPointer ~= 0 ifTrue:
 		[self isPrimitiveFunctionPointerAnIndex ifTrue:
 			[self externalQuickPrimitiveResponse.
+			 cogit recordDirectActivationOfQuickPrimitive: newMethod.
 			 self return: self popStack toExecutive: inInterpreter.
 			 ^nil].
 		 "slowPrimitiveResponse may of course context-switch.  If so we must reenter the
@@ -3490,7 +3500,7 @@ CoInterpreter >> framePointerAddress [
 	<api>
 	<returnTypeC: #usqInt>
 	^self cCode: [(self addressOf: framePointer) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #framePointer in: self]
+		inSmalltalk: [(cogit simulatedAddresses simulatedVariableAccessor: #framePointer in: self) address]
 ]
 
 { #category : #'frame access' }
@@ -3686,6 +3696,20 @@ CoInterpreter >> getMethodCompilationMSecs [
 
 	<doNotGenerate>
 	^ cogit getMethodCompilationMSecs
+]
+
+{ #category : #statistics }
+CoInterpreter >> getStatCodeCompactionCount [
+
+	<api>
+	^ statCodeCompactionCount
+]
+
+{ #category : #statistics }
+CoInterpreter >> getStatCodeCompactionUsecs [
+
+	<api>
+	^ statCodeCompactionUsecs
 ]
 
 { #category : #'message sending' }
@@ -3993,8 +4017,9 @@ CoInterpreter >> instructionPointer: aValue [
 CoInterpreter >> instructionPointerAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: instructionPointer) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #instructionPointer in: self]
+
+	^ self maybeSimulatedAddressOf: #instructionPointer
+
 ]
 
 { #category : #'frame access' }
@@ -4199,6 +4224,7 @@ CoInterpreter >> interpretMethodFromMachineCode [
 			 self isPrimitiveFunctionPointerAnIndex
 				ifTrue:
 					[self externalQuickPrimitiveResponse.
+					 cogit recordDirectActivationOfQuickPrimitive: newMethod.
 					 primFailCode := 0]
 				ifFalse:
 					[self slowPrimitiveResponse].
@@ -4332,7 +4358,8 @@ CoInterpreter >> justActivateNewMethod: mustBeInterpreterFrame [
 		ifNotNil:
 			[self push: cogMethod asUnsignedInteger.
 			 self push: objectMemory nilObject. "FoxThisContext field"
-			 instructionPointer := cogMethod asUnsignedInteger + cogMethod stackCheckOffset]
+			 instructionPointer := cogMethod asUnsignedInteger + cogMethod stackCheckOffset.
+			 cogit recordMethodActivatedAfterStackCheckOffset: cogMethod.]
 		ifNil:
 			[self push: newMethod.
 			 self setMethod: newMethod methodHeader: methodHeader.
@@ -5411,7 +5438,7 @@ CoInterpreter >> newMethodAddress [
 	<api>
 	<returnTypeC: #usqInt>
 	^self cCode: [(self addressOf: newMethod) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #newMethod in: self]
+		inSmalltalk: [(cogit simulatedAddresses simulatedVariableAccessor: #newMethod in: self) address]
 ]
 
 { #category : #'method lookup cache' }
@@ -5448,11 +5475,15 @@ CoInterpreter >> nextProfileTickAddress [
 		inSmalltalk:
 			[VMBIGENDIAN
 				ifTrue:
-					[cogit simulatedReadWriteVariableAddress: #nextProfileTickLow in: self.
-					 cogit simulatedReadWriteVariableAddress: #nextProfileTickHigh in: self]
+					[cogit simulatedAddresses 
+						simulatedVariableAccessor: #nextProfileTickLow in: self.
+					 (cogit simulatedAddresses 
+						simulatedVariableAccessor: #nextProfileTickHigh in: self) address]
 				ifFalse:
-					[cogit simulatedReadWriteVariableAddress: #nextProfileTickHigh in: self.
-					 cogit simulatedReadWriteVariableAddress: #nextProfileTickLow in: self]]
+					[cogit simulatedAddresses 
+						simulatedVariableAccessor: #nextProfileTickHigh in: self.
+					 (cogit simulatedAddresses 
+						simulatedVariableAccessor: #nextProfileTickLow in: self) address]]
 ]
 
 { #category : #'cog jit support' }
@@ -5587,7 +5618,7 @@ CoInterpreter >> primFailCodeAddress [
 	<api>
 	<returnTypeC: #usqInt>
 	^self cCode: [(self addressOf: primFailCode) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #primFailCode in: self]
+		inSmalltalk: [(cogit simulatedAddresses simulatedVariableAccessor: #primFailCode in: self) address]
 ]
 
 { #category : #'compiled methods' }
@@ -5636,8 +5667,8 @@ CoInterpreter >> primTraceLogIndexAddress [
 	<api>
 	<returnTypeC: #usqInt>
 	"N.B. primTraceLogIndex is 8-bits"
-	^self cCode: [(self addressOf: primTraceLogIndex) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #primTraceLogIndex in: self]
+	^ self maybeSimulatedAddressOf: #primTraceLogIndex
+
 ]
 
 { #category : #'as yet unclassified' }
@@ -6338,6 +6369,9 @@ CoInterpreter >> readImageFromFile: f HeapSize: desiredHeapSize StartingAt: imag
 	bytesToShift := objectMemory memoryBaseForImageRead - oldBaseAddr.
 	self initializeInterpreter: bytesToShift.  "adjusts all oops to new location"
 	self initializeCodeGenerator.
+	
+	cogit imageLoaded.
+	
 	^dataSize
 ]
 
@@ -6784,7 +6818,7 @@ CoInterpreter >> stackLimitAddress [
 	<api>
 	<returnTypeC: #usqInt>
 	^self cCode: '(usqInt)&GIV(stackLimit)'
-		  inSmalltalk: [cogit simulatedVariableAddress: #stackLimitFromMachineCode in: self]
+		  inSmalltalk: [ ^ self maybeSimulatedAddressOf: #stackLimitFromMachineCode ]
 ]
 
 { #category : #'stack pages' }
@@ -6843,7 +6877,7 @@ CoInterpreter >> stackPointerAddress [
 	<api>
 	<returnTypeC: #usqInt>
 	^self cCode: [(self addressOf: stackPointer) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #stackPointer in: self]
+		inSmalltalk: [(cogit simulatedAddresses simulatedVariableAccessor: #stackPointer in: self) address]
 ]
 
 { #category : #'frame access' }

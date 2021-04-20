@@ -275,7 +275,9 @@ CogMethodZone >> compactCompiledCode [
 							to: #'CogMethod *'].
 	mzFreeStart := dest asUnsignedInteger.
 	methodBytesFreedSinceLastCompaction := 0.
-	compactionInProgress := false
+	compactionInProgress := false.
+
+	cogit cogEventLogger compactCompiledCodeFinished.
 ]
 
 { #category : #accessing }
@@ -317,7 +319,10 @@ CogMethodZone >> freeMethod: cogMethod [
 	self assert: cogMethod cmType ~= CMFree.
 	self assert: (cogit cogMethodDoesntLookKosher: cogMethod) = 0.
 	cogMethod cmType = CMMethod ifTrue:
-		["There should be a one-to-one mapping between bytecoded and cog methods."
+		[
+		 cogit cogEventLogger methodCollected: cogMethod.
+		
+		"There should be a one-to-one mapping between bytecoded and cog methods."
 		"Only reset the original method's header if it is referring to this CogMethod."
 		 (coInterpreter rawHeaderOf: cogMethod methodObject) asInteger = cogMethod asInteger
 			ifTrue:

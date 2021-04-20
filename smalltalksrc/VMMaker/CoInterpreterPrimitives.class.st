@@ -381,8 +381,7 @@ CoInterpreterPrimitives >> primitiveFlushCacheBySelector [
 CoInterpreterPrimitives >> primitiveFunctionPointerAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: primitiveFunctionPointer) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #primitiveFunctionPointer in: self]
+	^ self maybeSimulatedAddressOf: #primitiveFunctionPointer
 ]
 
 { #category : #'process primitives' }
@@ -572,6 +571,15 @@ CoInterpreterPrimitives >> primitiveProfileSemaphore [
 	self pop: 1.
 	flushState ifTrue:
 		[self siglong: reenterInterpreter jmp: ReturnToInterpreter]
+]
+
+{ #category : #'system control primitives' }
+CoInterpreterPrimitives >> primitiveQuit [ 
+
+	cogit logGCCounters.
+	cogit logCogCounters.
+	cogit shutdownVM.
+	super primitiveQuit
 ]
 
 { #category : #'method introspection primitives' }

@@ -88,7 +88,8 @@ VMPrimitiveCallingTest >> testCallingNamedPrimitivesTakingTracesHasATraceForTheP
 		arguments: {memory integerObjectOf: 2}
 		returnAddress: callerAddress.
 	
-	self assert: (interpreter primTraceLog at: 1) equals: callingMethod selector
+	
+	self assert: (interpreter primTraceLog at: interpreter primTraceLogIndex - 1) equals: callingMethod selector
 ]
 
 { #category : #'tests - with tracing' }
@@ -250,7 +251,7 @@ VMPrimitiveCallingTest >> testCallingPrimitivesTakingTracesHasATraceForThePrimit
 		arguments: {memory integerObjectOf: 2}
 		returnAddress: callerAddress.
 	
-	self assert: (interpreter primTraceLog at: 1) equals: callingMethod selector
+	self assert: (interpreter primTraceLog at: interpreter primTraceLogIndex - 1) equals: callingMethod selector
 ]
 
 { #category : #'tests - with tracing' }
@@ -543,7 +544,7 @@ VMPrimitiveCallingTest >> testPrimitiveCallSetsPrimitiveFunctionPointerWhenCalli
 		returnAddress: callerAddress.
 	
 	self 
-		assert: (cogit simulatedTrampolines at: interpreter primitiveFunctionPointer) selector
+		assert: (cogit simulatedAddresses trampolineAtAddress: interpreter primitiveFunctionPointer) selector
 		equals: #primitiveAdd
 	
 

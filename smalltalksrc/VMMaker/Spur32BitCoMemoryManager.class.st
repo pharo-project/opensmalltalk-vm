@@ -127,8 +127,9 @@ Spur32BitCoMemoryManager >> freeStart: aValue [
 Spur32BitCoMemoryManager >> freeStartAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: freeStart) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #freeStart in: self]
+	
+	^ self maybeSimulatedAddressOf: #freeStart
+
 ]
 
 { #category : #'cog jit support' }
@@ -250,8 +251,11 @@ Spur32BitCoMemoryManager >> methodHeaderOf: methodObj [
 Spur32BitCoMemoryManager >> needGCFlagAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: needGCFlag) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #needGCFlag in: self]
+	
+	"I need to do this, because if I use directly maybeSimulatedAddressOf: there is a reference to the function needGCFlag and generates it"
+	^ self cCode: [ (self addressOf: needGCFlag) asUnsignedInteger ] 
+		inSmalltalk: [ self maybeSimulatedAddressOf: #needGCFlag.  ]
+
 ]
 
 { #category : #'garbage collection' }
@@ -297,8 +301,8 @@ Spur32BitCoMemoryManager >> remember: objOop [
 Spur32BitCoMemoryManager >> scavengeThresholdAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: scavengeThreshold) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #getScavengeThreshold in: self]
+	
+	^ cogit maybeSimulatedAddressOf: #getScavengeThreshold
 ]
 
 { #category : #'cog jit support' }

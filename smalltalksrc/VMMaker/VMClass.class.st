@@ -198,6 +198,12 @@ VMClass class >> initializeMiscConstants [
 			[TempVectReadBarrier ifTrue: [self error: 'read barrier works with spur VM only...'].
 			 SistaVM ifTrue: [self error: 'Sista VM works with spur VM only...']].
 
+	FEATURE_FFI := FEATURE_THREADED_FFI := true.
+
+	InitializationOptions
+		at: #FEATURE_FFI				ifPresent: [:value| FEATURE_FFI := value];
+		at: #FEATURE_THREADED_FFI	ifPresent: [:value| FEATURE_THREADED_FFI := value].
+
 	"And not these; they're compile-time"
 	IMMUTABILITY := InitializationOptions at: #IMMUTABILITY ifAbsent: [SPURVM] "Default as enabled for Spur VMs"
 ]
@@ -1047,6 +1053,19 @@ VMClass >> singleFloatAtPointer: pointer put: value [
 	self halt.
 ]
 
+{ #category : #simulation }
+VMClass >> snprintf: aBuffer _: maxLength _: format _: obj [
+
+	<doNotGenerate>
+	| str |
+	str := format printf: obj.
+
+	1 to: (maxLength min: str size) do: [ :i | 
+		aBuffer at: i - 1 put: (str at: i) asInteger ].
+	
+	^ (maxLength min: str size)
+]
+
 { #category : #'simulation support' }
 VMClass >> sqLowLevelMFence [
 	<doNotGenerate>
@@ -1168,8 +1187,10 @@ VMClass >> strncpy: dest _: src _: n [
 								[dest class == ByteArray ifTrue:
 									[[ :idx | dest at: idx put: (getBlock value: idx)]]]]
 					ifFalse:
-						[dest isInteger ifTrue: 
-							[[ :idx | self byteAt: dest + idx - 1 put: (getBlock value: idx)]]].
+						[dest isInteger 
+							ifTrue: [[ :idx | self byteAt: dest + idx - 1 put: (getBlock value: idx)]]
+						 	ifFalse: [ dest isCObjectAccessor ifTrue: [ [ :idx | dest at: idx - 1 put: (getBlock value: idx) asInteger ] ]]].
+
 	setBlock ifNil: [self error: 'unhandled type of destination string'].
 	1 to: count do: setBlock.
 	"SVr4, 4.3BSD, C89, C99 require the remainder of the buffer be filled with nulls"

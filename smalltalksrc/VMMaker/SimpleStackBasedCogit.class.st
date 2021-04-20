@@ -2416,7 +2416,7 @@ SimpleStackBasedCogit >> genPrimReturnEnterCogCodeEnilopmart: profiling [
 		 jmpSample jmpTarget: self Label.
 		 backEnd saveAndRestoreLinkRegAround:
 			[self CallFullRT: (self cCode: '(usqIntptr_t)ceCheckProfileTick'
-						inSmalltalk: [self simulatedTrampolineFor: #ceCheckProfileTick])].
+						inSmalltalk: [simulatedAddresses simulatedTrampolineFor: #ceCheckProfileTick])].
 		 self Jump: continuePostSample]
 ]
 

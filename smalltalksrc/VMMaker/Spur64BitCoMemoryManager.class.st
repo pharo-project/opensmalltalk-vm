@@ -134,8 +134,8 @@ Spur64BitCoMemoryManager >> freeStart: aValue [
 Spur64BitCoMemoryManager >> freeStartAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: freeStart) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #freeStart in: self]
+
+	^ self maybeSimulatedAddressOf: #freeStart
 ]
 
 { #category : #'cog jit support' }
@@ -257,8 +257,12 @@ Spur64BitCoMemoryManager >> methodHeaderOf: methodObj [
 Spur64BitCoMemoryManager >> needGCFlagAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: needGCFlag) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #needGCFlag in: self]
+
+	"I need to do this, because if I use directly maybeSimulatedAddressOf: there is a reference to the function needGCFlag and generates it"
+	^ self cCode: [ (self addressOf: needGCFlag) asUnsignedInteger ] 
+		inSmalltalk: [ self maybeSimulatedAddressOf: #needGCFlag.  ]
+
+
 ]
 
 { #category : #'garbage collection' }
@@ -306,8 +310,8 @@ Spur64BitCoMemoryManager >> remember: objOop [
 Spur64BitCoMemoryManager >> scavengeThresholdAddress [
 	<api>
 	<returnTypeC: #usqInt>
-	^self cCode: [(self addressOf: scavengeThreshold) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedReadWriteVariableAddress: #getScavengeThreshold in: self]
+	
+	^ cogit maybeSimulatedAddressOf: #getScavengeThreshold
 ]
 
 { #category : #'debug support' }
@@ -324,8 +328,12 @@ Spur64BitCoMemoryManager >> setUpForUseByFacade: aCurrentImageCoInterpreterFacad
 { #category : #'trampoline support' }
 Spur64BitCoMemoryManager >> specialObjectsArrayAddress [
 	<api>
-	^self cCode: [(self addressOf: specialObjectsOop) asUnsignedInteger]
-		inSmalltalk: [cogit simulatedVariableAddress: #specialObjectsOop in: self]
+	
+	"I need to do this, because if I use directly maybeSimulatedAddressOf: there is a reference to the function specialObjectsOop and generates it"
+	^ self cCode: [ (self addressOf: specialObjectsOop) asUnsignedInteger ] 
+		inSmalltalk: [ self maybeSimulatedAddressOf: #specialObjectsOop.  ]
+
+
 ]
 
 { #category : #accessing }
