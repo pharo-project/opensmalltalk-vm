@@ -198,6 +198,8 @@ def upload(platform, configuration, archiveName) {
 	def expandedBinaryFileName = sh(returnStdout: true, script: "ls build/build/packages/PharoVM-*-${archiveName}-bin.zip").trim()
 	def expandedCSourceFileName = sh(returnStdout: true, script: "ls build/build/packages/PharoVM-*-${archiveName}-c-src.zip").trim()
 	def expandedHeadersFileName = sh(returnStdout: true, script: "ls build/build/packages/PharoVM-*-${archiveName}-include.zip").trim()
+	def expandedLibFileName = sh(returnStdout: true, script: "ls build/build/packages/PharoVM-*-${archiveName}-lib.zip").trim()
+
 
 	sshagent (credentials: ['b5248b59-a193-4457-8459-e28e9eb29ed7']) {
 		sh "scp -o StrictHostKeyChecking=no \
@@ -220,6 +222,13 @@ def upload(platform, configuration, archiveName) {
 		sh "scp -o StrictHostKeyChecking=no \
 		${expandedCSourceFileName} \
 		pharoorgde@ssh.cluster023.hosting.ovh.net:/home/pharoorgde/files/vm/pharo-spur64-headless/${platform}/source/latest.zip"
+
+		sh "scp -o StrictHostKeyChecking=no \
+		${expandedLibFileName} \
+		pharoorgde@ssh.cluster023.hosting.ovh.net:/home/pharoorgde/files/vm/pharo-spur64-headless/${platform}/lib"
+		sh "scp -o StrictHostKeyChecking=no \
+		${expandedLibFileName} \
+		pharoorgde@ssh.cluster023.hosting.ovh.net:/home/pharoorgde/files/vm/pharo-spur64-headless/${platform}/lib/latest.zip"
 	}
 }
 
