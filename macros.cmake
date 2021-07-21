@@ -4,7 +4,9 @@ macro(addLibraryWithRPATH NAME)
     addIndependentLibraryWithRPATH(${NAME} ${ARGN})
 
     # Declare the main executable depends on the plugin so it gets built with it
-    add_dependencies(${VM_EXECUTABLE_NAME} ${NAME})
+    if(COMPILE_EXECUTABLE)
+      add_dependencies(${VM_EXECUTABLE_NAME} ${NAME})
+    endif()
 
     #Declare the plugin depends on the VM core library
     if(NOT "${NAME}" STREQUAL "${VM_LIBRARY_NAME}")
@@ -16,7 +18,7 @@ endmacro()
 macro(addIndependentLibraryWithRPATH NAME)
     SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH ${PHARO_LIBRARY_PATH})
-
+    
     add_library(${NAME} SHARED ${ARGN})
     set_target_properties(${NAME} PROPERTIES MACOSX_RPATH ON)
     set_target_properties(${NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY})
@@ -67,13 +69,17 @@ macro(add_third_party_dependency_with_baseurl NAME BASEURL)
     )
     add_custom_target(${NAME})
 		foreach(LIBRARY_PATH IN LISTS DOWNLOADED_THIRD_PARTY_LIBRARIES)
-      message(STATUS ${LIBRARY_PATH})
+      message(STATUS "Copy ${LIBRARY_PATH} into ${LIBRARY_OUTPUT_DIRECTORY}")
       add_custom_command(TARGET ${NAME}
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy "${LIBRARY_PATH}" "${LIBRARY_OUTPUT_DIRECTORY}"
       )
 		endforeach()
-    add_dependencies(${VM_EXECUTABLE_NAME} ${NAME})
+    if(COMPILE_EXECUTABLE)
+        add_dependencies(${VM_EXECUTABLE_NAME} ${NAME})
+    else()
+        add_dependencies(${VM_LIBRARY_NAME} ${NAME})
+    endif()
 endmacro()
 
 # Add a third party dependency taken from the files.pharo.org repository
