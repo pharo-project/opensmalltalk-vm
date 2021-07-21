@@ -1515,6 +1515,21 @@ CoInterpreter >> ceCounterTripped: condition [
 ]
 
 { #category : #trampolines }
+CoInterpreter >> ceFrameOverflowTrampoline [
+	
+	<api>
+	
+	"When trying to marry a context, the frame has more elements than expected. 
+	So, we cannot do more than crashing and explosing and generating fireworks.
+	This is good to put a breakpoint. This is usually provoked by an error in the compiler 
+	or using reflection in a nasty way."
+		
+	self error:
+		'The number of elements in the frame is bigger than the context. 
+	The method is wrongly compiled. The memory has been corrupted. I quit.'
+]
+
+{ #category : #trampolines }
 CoInterpreter >> ceInterpretMethodFromPIC: aMethodObj receiver: rcvr [
 	<api>
 	| pic primitiveIndex |
@@ -3163,13 +3178,6 @@ CoInterpreter >> externalInstVar: offset ofContext: aContext [
  	 and: [value signedIntFromLong < 0]]) ifTrue:
 		[^self mustMapMachineCodePC: (objectMemory integerValueOf: value) context: aContext].
 	^value
-]
-
-{ #category : #'cog jit support' }
-CoInterpreter >> externalWriteBackHeadStackPointer [
-	self assert: (stackPointer < stackPage baseAddress
-				and: [stackPointer > (stackPage realStackLimit - (LargeContextSlots * objectMemory bytesPerOop))]).
-	stackPage headSP: stackPointer
 ]
 
 { #category : #utilities }
@@ -4962,7 +4970,14 @@ CoInterpreter >> marryFrame: theFP SP: theSP copyTemps: copyTemps [
 								ifFalse: [objectMemory nilObject].
 			 rcvr := self iframeReceiver: theFP.
 			 numStack := self stackPointerIndexForIFrame: theFP WithSP: theSP numArgs: numArgs].
+
+	(numStack + ReceiverIndex <= numSlots) ifFalse: [	
+			self error:
+				'The number of elements in the frame is bigger than the context. 
+			The method is wrongly compiled. The memory has been corrupted. I quit.'].
+
 	theContext := objectMemory eeInstantiateMethodContextSlots: numSlots.
+
 	self setFrameContext: theFP to: theContext.
 	"Mark context as married by setting its sender to the frame pointer plus SmallInteger
 	 tags and the InstructionPointer to the saved fp (which ensures correct alignment
@@ -5005,7 +5020,6 @@ CoInterpreter >> marryFrame: theFP SP: theSP copyTemps: copyTemps [
 
 	self assert: (self frameHasContext: theFP).
 	self assert: (self frameOfMarriedContext: theContext) = theFP.
-	self assert: numStack + ReceiverIndex < (objectMemory lengthOf: theContext).
 
 	^theContext
 ]
@@ -7149,18 +7163,12 @@ CoInterpreter >> updateStateOfSpouseContextForFrame: theFP WithSP: theSP [
 		 objectMemory storePointer: ReceiverIndex + i
 			ofObject: theContext
 			withValue: (stackPages longAt: argsPointer)].
-	"now update the non-argument stack contents."
-	[pointer >= theSP] whileTrue:
-		[self assert: (objectMemory addressCouldBeOop: (stackPages longAt: pointer)).
-		 tempIndex := tempIndex + 1.
-		 objectMemory storePointer: ReceiverIndex + tempIndex
-			ofObject: theContext
-			withValue: (stackPages longAt: pointer).
-		 pointer := pointer - objectMemory wordSize].
-	self assert: ReceiverIndex + tempIndex < (objectMemory lengthOf: theContext).
-	objectMemory storePointerUnchecked: StackPointerIndex
-		ofObject: theContext
-		withValue: (objectMemory integerObjectOf: tempIndex)
+
+	self
+		updateTemporariesOf: theContext
+		startingPointer: pointer
+		theSP: theSP
+		startingIndex: tempIndex
 ]
 
 { #category : #'debug support' }

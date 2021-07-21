@@ -272,7 +272,8 @@ Class {
 		'statCompileFullBlockCount',
 		'statCompileFullBlockUsecs',
 		'statCompileMethodCount',
-		'statCompileMethodUsecs'
+		'statCompileMethodUsecs',
+		'frameOverflowTrampoline'
 	],
 	#classVars : [
 		'AltBlockCreationBytecodeSize',
@@ -1142,7 +1143,7 @@ Cogit class >> notesAndQueries [
 
 { #category : #accessing }
 Cogit class >> numTrampolines [
-	^39 "31 + 4 each for self and super sends"
+	^40 "32 + 4 each for self and super sends"
 		+ (COGMTVM ifTrue: [ 2 ] ifFalse: [ 0 ])
 
 	"self withAllSubclasses collect: [:c| {c. (c instVarNames select: [:ea| ea beginsWith: 'ce']) size}]"
@@ -6912,6 +6913,12 @@ Cogit >> followMethodReferencesInClosedPIC: cPIC [
 	^refersToYoung
 ]
 
+{ #category : #tram }
+Cogit >> frameOverflowTrampoline [
+	
+	^ frameOverflowTrampoline
+]
+
 { #category : #'simulation only' }
 Cogit >> framePointerAddress [
 	"redirect for the backEnd's genSaveStackPointers"
@@ -8087,6 +8094,13 @@ Cogit >> generateEnilopmarts [
 	self recordGeneratedRunTime: 'cePrimReturnEnterCogCodeProfiling' address: cePrimReturnEnterCogCodeProfiling
 ]
 
+{ #category : #trampolines }
+Cogit >> generateFrameOverflowTrampoline [
+	
+	frameOverflowTrampoline := self genTrampolineFor: #ceFrameOverflowTrampoline called: 'ceFrameOverflowTrampoline'.
+
+]
+
 { #category : #'generate machine code' }
 Cogit >> generateInstructionsAt: eventualAbsoluteAddress [
 	"Size pc-dependent instructions and assign eventual addresses to all instructions.
@@ -8251,6 +8265,8 @@ Cogit >> generateRunTimeTrampolines [
 	ceFreeTrampoline := self genTrampolineFor: #ceFree:
 											called: 'ceFreeTrampoline'
 											arg: ReceiverResultReg.
+											
+	self generateFrameOverflowTrampoline
 ]
 
 { #category : #initialization }

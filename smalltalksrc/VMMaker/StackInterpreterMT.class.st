@@ -2040,7 +2040,13 @@ StackInterpreterMT >> updateStateOfSpouseContextForFrame: theFP WithSP: theSP [
 	self assert: ReceiverIndex + tempIndex < (objectMemory lengthOf: theContext).
 	objectMemory storePointerUnchecked: StackPointerIndex
 		ofObject: theContext
-		withValue: (objectMemory integerObjectOf: tempIndex)
+		withValue: (objectMemory integerObjectOf: tempIndex).
+			
+	self
+		updateTemporariesOf: theContext
+		startingPointer: pointer
+		theSP: theSP
+		startingIndex: tempIndex
 ]
 
 { #category : #'cog jit support' }
